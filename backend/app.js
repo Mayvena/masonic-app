@@ -1,48 +1,48 @@
 const express = require('express');
+const cors = require('cors');
 const http = require('http');
 const socketIo = require('socket.io');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const db = require('./db');
-
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
-  }
-});
+const io = socketIo(server); // attach socket.io
 
-app.use(cors());
-app.use(bodyParser.json());
-
-// Routes
 const authRoutes = require('./routes/auth');
 const fileRoutes = require('./routes/files');
-const chatRoutes = require('./routes/chat');
+const profileRoutes = require('./routes/profile');
+
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Serve file uploads (if storing them on disk, e.g., in /uploads)
+app.use('/uploads', express.static('uploads'));
+
+// Mount the API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/files', fileRoutes);
-app.use('/api/chat', chatRoutes);
+app.use('/api/profile', profileRoutes);
 
-// Real-time chat with Socket.io
+// Socket.io chat configuration
 io.on('connection', (socket) => {
-  console.log('A user connected');
+  console.log('A user connected: ' + socket.id);
 
-  socket.on('join', ({ userId, username }) => {
-    console.log(`${username} joined the chat.`);
+  // Join room based on user id or a global room
+  socket.on('join', (data) => {
+    socket.join(data.room);
   });
 
-  socket.on('sendMessage', (message) => {
-    io.emit('message', message);
+  // Broadcast incoming messages to room
+  socket.on('chatMessage', (data) => {
+    io.to(data.room).emit('chatMessage', data);
   });
 
   socket.on('disconnect', () => {
-    console.log('A user disconnected');
+    console.log('User disconnected: ' + socket.id);
   });
 });
 
+// Start server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server listening on port ${PORT}`);
 });
