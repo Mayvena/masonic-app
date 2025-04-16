@@ -10,6 +10,9 @@ const authRoutes = require('./routes/auth');
 const fileRoutes = require('./routes/files');
 const profileRoutes = require('./routes/profile');
 
+const sequelize = require('./config/db');
+const { User, AccessGroup } = require('./models');
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -21,6 +24,11 @@ app.use('/uploads', express.static('uploads'));
 app.use('/api/auth', authRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/profile', profileRoutes);
+
+// Sync models with database
+sequelize.sync({ alter: true })  // alter: true will update tables as needed; use { force: true } to drop & re-create tables in development
+  .then(() => console.log('Database synchronized'))
+  .catch((error) => console.error('Database sync error:', error));
 
 // Socket.io chat configuration
 io.on('connection', (socket) => {
